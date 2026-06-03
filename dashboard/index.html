@@ -1,0 +1,1706 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>INDUSTRIAL IoT TANK MONITOR</title>
+
+    <!-- Tailwind CSS (via CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons (via CDN) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: [
+                "Inter",
+                "ui-sans-serif",
+                "system-ui",
+                "-apple-system",
+                "BlinkMacSystemFont",
+                "Segoe UI",
+                "Roboto",
+                "sans-serif",
+              ],
+              display: ["Outfit", "sans-serif"],
+              mono: [
+                "JetBrains Mono",
+                "ui-monospace",
+                "SFMono-Regular",
+                "Menlo",
+                "Monaco",
+                "Consolas",
+                "monospace",
+              ],
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap");
+
+      .glass {
+        background: rgba(15, 23, 42, 0.45);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      @keyframes wave-move {
+        0% {
+          transform: translateX(0) translateZ(0) scaleY(1);
+        }
+        50% {
+          transform: translateX(-25%) translateZ(0) scaleY(0.85);
+        }
+        100% {
+          transform: translateX(-50%) translateZ(0) scaleY(1);
+        }
+      }
+
+      .animate-wave {
+        animation: wave-move 8s linear infinite;
+      }
+
+      @keyframes critical-pulse {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 25px 4px rgba(239, 68, 68, 0.2);
+        }
+      }
+
+      .critical-pulse {
+        animation: critical-pulse 2s infinite;
+      }
+
+      @keyframes pulse-ring {
+        0%,
+        100% {
+          border-color: rgba(245, 158, 11, 0.15);
+        }
+        50% {
+          border-color: rgba(245, 158, 11, 0.4);
+        }
+      }
+
+      .animate-pulse-ring {
+        animation: pulse-ring 2.5s infinite;
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(2, 6, 23, 0.5);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.15);
+        border-radius: 9999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(148, 163, 184, 0.3);
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen bg-[#020617] text-slate-200 font-sans antialiased overflow-x-hidden selection:bg-blue-500/30 selection:text-white relative pb-12"
+  >
+    <!-- Background Decorative Ambient Gradients -->
+    <div
+      class="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none"
+    ></div>
+    <div
+      class="absolute bottom-10 right-1/4 w-[600px] h-[600px] bg-indigo-950/15 rounded-full blur-[140px] pointer-events-none"
+    ></div>
+
+    <!-- Main Wrapper Container -->
+    <div
+      class="max-w-7xl mx-auto px-4 py-6 md:py-8 relative z-10"
+      id="container_inner"
+    >
+      <!-- Header Section -->
+      <header
+        class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 border-b border-white/10 pb-6"
+        id="dashboard_header"
+      >
+        <div>
+          <div class="flex items-center gap-2 mb-1.5" id="header_title_row">
+            <i
+              data-lucide="cpu"
+              class="h-5 w-5 text-blue-400 animate-pulse"
+              id="cpu_icon"
+            ></i>
+            <span
+              class="font-mono text-[10px] font-bold uppercase tracking-widest text-blue-400 bg-blue-950/40 px-2.5 py-0.5 rounded-md border border-blue-500/20"
+            >
+              ACTIVE NODE: [DEVICE_ID] <!-- INSIRA O NUMERO DE SÉRIE DO SEU DEVICE AQUI -->
+            </span>
+          </div>
+          <h1
+            class="font-display font-black text-2xl md:text-3xl text-white tracking-tight uppercase"
+            id="main_title"
+          >
+            INDUSTRIAL IoT <span class="text-blue-500">TANK MONITOR</span>
+          </h1>
+          <p
+            class="font-mono text-[10px] text-slate-500 tracking-widest uppercase mt-1"
+            id="main_subtitle"
+          >
+            SISTEMA DE TELEMETRIA ESTÉTICA EM TEMPO REAL • CONEXÃO AWS INTEGRADA
+          </p>
+        </div>
+
+        <div
+          class="flex flex-wrap items-center gap-3 w-full md:w-auto"
+          id="header_controls"
+        >
+          <!-- Live Countdown Badge -->
+          <div
+            id="refresh_timer"
+            class="flex items-center gap-1.5 font-mono text-[11px] text-slate-400 glass px-3 py-2 rounded-lg"
+          >
+            <i
+              data-lucide="refresh-cw"
+              class="h-3 w-3 animate-spin"
+              style="animation-duration: 3s"
+            ></i>
+            <span id="refresh_timer_text">REFRESH: 2.0s</span>
+          </div>
+
+          <!-- Connection Status Badge -->
+          <div
+            id="status_badge"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border font-mono text-[11px] uppercase tracking-wider transition-all duration-300 glass border-white/10 text-slate-400"
+          >
+            <span class="relative flex h-2 w-2" id="pulsing_dot_container">
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-slate-400"
+                id="pulsing_dot_outer"
+              ></span>
+              <span
+                class="relative inline-flex rounded-full h-2 w-2 bg-slate-500"
+                id="pulsing_dot_inner"
+              ></span>
+            </span>
+            <span id="status_badge_text">INICIANDO...</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Global Warning Indicator for Less than 10% (Toggled via JS) -->
+      <div
+        class="mb-6 bg-red-950/40 border-l-4 border-red-500 p-4 rounded-r-xl hidden items-center justify-between gap-4 critical-pulse"
+        id="critical_alert_bar"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="bg-red-500 p-1.5 rounded-lg text-white"
+            id="bar_alert_icon_bg"
+          >
+            <i
+              data-lucide="alert-triangle"
+              class="h-5 w-5"
+              id="bar_alert_icon"
+            ></i>
+          </div>
+          <div>
+            <h4 class="text-red-200 font-bold text-sm">
+              ALERTA: NÍVEL CRÍTICO EM RECIPIENTE!
+            </h4>
+            <p class="text-red-300/80 text-xs" id="critical_alert_desc">
+              O cartucho de tinta está com apenas X%. Recarga imediata
+              operacional solicitada.
+            </p>
+          </div>
+        </div>
+        <span
+          class="bg-red-500/20 text-red-300 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border border-red-500/30"
+        >
+          CUIDADO CRÍTICO
+        </span>
+      </div>
+
+      <!-- Top Summary Metrics Grid -->
+      <section
+        class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"
+        id="quick_stats_row"
+      >
+        <!-- Card 1: Total Registrations -->
+        <div
+          class="glass rounded-xl p-4 hover:border-white/20 transition-all duration-300"
+          id="card_total_records"
+        >
+          <div
+            class="flex items-center justify-between text-slate-500 text-[10px] font-mono uppercase tracking-widest mb-2"
+          >
+            <span>LEITURAS GRAVADAS</span>
+            <i data-lucide="database" class="h-4 w-4 text-blue-400"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span
+              class="text-2xl md:text-3xl font-display font-extrabold text-white"
+              id="stat_records_val"
+              >--</span
+            >
+            <span class="text-xs text-blue-400/80 font-mono"
+              >records in cloud</span
+            >
+          </div>
+        </div>
+
+        <!-- Card 2: Last System Clock -->
+        <div
+          class="glass rounded-xl p-4 hover:border-white/20 transition-all duration-300"
+          id="card_last_update"
+        >
+          <div
+            class="flex items-center justify-between text-slate-500 text-[10px] font-mono uppercase tracking-widest mb-2"
+          >
+            <span>HORA DO REGISTRO</span>
+            <i data-lucide="clock" class="h-4 w-4 text-emerald-400"></i>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span
+              class="text-2xl md:text-3xl font-display font-extrabold text-white"
+              id="stat_clock_val"
+              >--:--:--</span
+            >
+            <span
+              class="text-xs text-emerald-400/80 font-mono"
+              id="stat_date_val"
+              >--/--/----</span
+            >
+          </div>
+        </div>
+
+        <!-- Card 3: Simulator Toggle Card -->
+        <div
+          class="glass rounded-xl p-4 hover:border-white/20 transition-all duration-300"
+          id="card_avg_level"
+        >
+          <div
+            class="flex items-center justify-between text-slate-500 text-[10px] font-mono uppercase tracking-widest mb-2"
+          >
+            <span>AÇÃO DO SIMULADOR</span>
+            <i data-lucide="sliders" class="h-4 w-4 text-blue-400"></i>
+          </div>
+          <div class="flex items-center justify-between mt-1">
+            <span class="text-xs text-slate-450 font-mono"
+              >TESTES DE SENSOR OFFLINE</span
+            >
+            <button
+              id="toggle_simulator_btn"
+              class="text-[10px] font-mono font-bold uppercase px-3 py-1.5 rounded transition-all border duration-200 bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-400"
+            >
+              ATIVAR
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Core Bento Grid Layout -->
+      <div
+        class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch mb-8"
+        id="dashboard_grid"
+      >
+        <!-- LEFT BENTO BLOCK: Temperature and Humidity (3 cols) -->
+        <div class="lg:col-span-3 flex flex-col gap-6" id="bento_left">
+          <!-- Temperature Card -->
+          <div
+            class="glass rounded-2xl p-6 flex-1 flex flex-col justify-between hover:border-white/20 transition-all group"
+            id="card_temp"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span
+                  class="text-slate-400 text-xs font-mono uppercase tracking-widest"
+                  >TEMPERATURA</span
+                >
+                <div
+                  class="p-2 rounded-md bg-orange-500/10 text-orange-400 group-hover:scale-110 transition-transform duration-200 border border-orange-500/20"
+                >
+                  <i data-lucide="thermometer" class="h-5 w-5"></i>
+                </div>
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex items-baseline gap-1">
+                  <span
+                    class="text-4xl md:text-5xl font-display font-black text-white tracking-tight"
+                    id="temp_value"
+                    >--.-</span
+                  >
+                  <span class="text-2xl font-bold text-slate-500">°C</span>
+                </div>
+                <p class="text-[11px] font-mono uppercase text-slate-500">
+                  Interior do Reservatório#1
+                </p>
+              </div>
+            </div>
+
+            <!-- Visual Heat Gauge -->
+            <div class="mt-6 pt-4 border-t border-white/5" id="temp_footer">
+              <div
+                class="flex items-center justify-between font-mono text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider"
+              >
+                <span>Faixa Operacional</span>
+                <span class="font-semibold text-slate-400"
+                  >0°C &bull; 50°C</span
+                >
+              </div>
+              <div
+                class="w-full bg-[#0a0f1d] rounded-full h-1.5 overflow-hidden border border-white/5"
+              >
+                <div
+                  id="temp_progress_fill"
+                  class="h-full bg-gradient-to-r from-blue-500 via-orange-400 to-red-500 transition-all duration-500"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Humidity Card -->
+          <div
+            class="glass rounded-2xl p-6 flex-1 flex flex-col justify-between hover:border-white/20 transition-all group"
+            id="card_humidity"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span
+                  class="text-slate-400 text-xs font-mono uppercase tracking-widest"
+                  >UMIDADE RELATIVA</span
+                >
+                <div
+                  class="p-2 rounded-md bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform duration-200 border border-blue-500/20"
+                >
+                  <i data-lucide="droplets" class="h-5 w-5"></i>
+                </div>
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex items-baseline gap-1">
+                  <span
+                    class="text-4xl md:text-5xl font-display font-black text-white tracking-tight"
+                    id="humidity_value"
+                    >--.-</span
+                  >
+                  <span class="text-2xl font-bold text-slate-500">%</span>
+                </div>
+                <p class="text-[11px] font-mono uppercase text-slate-500">
+                  SENSORES DE AMBIENTE INTERNO
+                </p>
+              </div>
+            </div>
+
+            <!-- Scroll vapor status gauge -->
+            <div class="mt-6 pt-4 border-t border-white/5" id="humidity_footer">
+              <div
+                class="flex items-center justify-between font-mono text-[10px] text-slate-500 mb-1.5 uppercase tracking-wider"
+              >
+                <span>Status do Vapor</span>
+                <span
+                  class="font-semibold text-slate-400"
+                  id="humidity_status_label"
+                  >ESTÁVEL</span
+                >
+              </div>
+              <div
+                class="w-full bg-[#0a0f1d] rounded-full h-1.5 overflow-hidden border border-white/5"
+              >
+                <div
+                  id="humidity_progress_fill"
+                  class="h-full bg-gradient-to-r from-blue-600 to-sky-400 transition-all duration-500"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CENTER BENTO BLOCK: Cylindrical Interactive Paint Can (6 cols) -->
+        <div
+          class="lg:col-span-6 flex flex-col items-center justify-center glass rounded-3xl p-6 md:p-8 relative"
+          id="bento_center"
+        >
+          <div class="w-full text-center mb-4" id="paint_can_header">
+            <span
+              class="text-slate-500 text-[10px] font-mono font-bold uppercase tracking-widest block mb-1"
+              >INDICADOR CENTRAL DE VOLUME</span
+            >
+            <h2
+              class="text-white font-display font-extrabold text-lg uppercase tracking-tight"
+            >
+              RESERVATÓRIO DE TINTA PRINCIPAL
+            </h2>
+
+            <!-- Color Palette Picker -->
+            <div
+              class="flex items-center justify-center gap-2 mt-3"
+              id="color_palette_picker"
+            >
+              <i data-lucide="palette" class="h-3.5 w-3.5 text-slate-400"></i>
+              <span
+                class="text-[10px] font-mono text-slate-500 uppercase tracking-tight"
+                >COR DA TINTA:</span
+              >
+              <div class="flex gap-1.5" id="paint_color_options">
+                <!-- Will be dynamically populated or selected in pure elements -->
+                <button
+                  onclick="changeSelectedColor('indigo')"
+                  id="color_pick_indigo"
+                  class="h-4 w-4 rounded-full border border-white ring-2 ring-blue-500 scale-125 bg-indigo-500 transition-all duration-250"
+                  title="Selecionar Indigo"
+                ></button>
+                <button
+                  onclick="changeSelectedColor('magenta')"
+                  id="color_pick_magenta"
+                  class="h-4 w-4 rounded-full border border-slate-800 bg-fuchsia-500 hover:scale-110 transition-all duration-250"
+                  title="Selecionar Magenta"
+                ></button>
+                <button
+                  onclick="changeSelectedColor('cyan')"
+                  id="color_pick_cyan"
+                  class="h-4 w-4 rounded-full border border-slate-800 bg-cyan-400 hover:scale-110 transition-all duration-250"
+                  title="Selecionar Cyan"
+                ></button>
+                <button
+                  onclick="changeSelectedColor('emerald')"
+                  id="color_pick_emerald"
+                  class="h-4 w-4 rounded-full border border-slate-800 bg-emerald-500 hover:scale-110 transition-all duration-250"
+                  title="Selecionar Emerald"
+                ></button>
+                <button
+                  onclick="changeSelectedColor('amber')"
+                  id="color_pick_amber"
+                  class="h-4 w-4 rounded-full border border-slate-800 bg-amber-400 hover:scale-110 transition-all duration-250"
+                  title="Selecionar Amber"
+                ></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- THE GIANT PHYSICAL EMBEDDED PAINT CAN -->
+          <div
+            class="relative w-64 h-80 flex flex-col justify-end items-center my-4 group"
+            id="lata_tinta_container"
+          >
+            <!-- Glow Backlight -->
+            <div
+              id="paint_backlight"
+              class="absolute inset-0 rounded-3xl opacity-25 filter blur-3xl transition-all duration-500 -z-10 bg-blue-500"
+            ></div>
+
+            <!-- Cylindrical visual can -->
+            <div
+              id="cylinder_can"
+              class="relative w-56 h-72 border-2 rounded-t-[36px] rounded-b-[42px] bg-slate-950/40 overflow-hidden flex flex-col justify-end transition-all duration-500 border-slate-700/60 shadow-[2px_10px_20px_rgba(0,0,0,0.5)]"
+            >
+              <!-- Metallic cylinder reflection shines -->
+              <div
+                class="absolute top-0 inset-x-0 h-4 bg-gradient-to-b from-slate-700/50 to-transparent z-20 pointer-events-none"
+              ></div>
+              <div
+                class="absolute left-0 inset-y-0 w-8 bg-gradient-to-r from-white/5 via-white/0 to-transparent z-20 pointer-events-none"
+              ></div>
+              <div
+                class="absolute right-0 inset-y-0 w-8 bg-gradient-to-l from-black/20 via-transparent to-transparent z-20 pointer-events-none"
+              ></div>
+
+              <!-- Liquid volume level container -->
+              <div
+                id="liquid_reservoir"
+                class="absolute inset-x-0 bottom-0 overflow-hidden transition-all duration-1000 ease-in-out"
+                style="height: 0%"
+              >
+                <!-- Liquid Base Fill -->
+                <div
+                  id="liquid_base_gradient"
+                  class="absolute inset-0 bg-gradient-to-t from-blue-500 to-indigo-600 opacity-90"
+                ></div>
+
+                <!-- Parallax Waves -->
+                <div
+                  class="absolute top-[-10px] left-0 w-[400%] h-20 opacity-40 z-10 animate-wave pointer-events-none"
+                  id="liquid_wave_overlay"
+                >
+                  <svg
+                    viewBox="0 0 1200 120"
+                    class="w-full h-full fill-white/10"
+                    preserveAspectRatio="none"
+                  >
+                    <path
+                      d="M0,60 C150,110 350,10 500,60 C650,110 850,10 1000,60 C1150,110 1350,10 1500,60 L1500,120 L0,120 Z"
+                    />
+                  </svg>
+                </div>
+                <div
+                  class="absolute top-[-15px] left-0 w-[300%] h-24 opacity-60 z-15 animate-wave pointer-events-none"
+                  style="animation-delay: -3s; animation-duration: 6s"
+                  id="liquid_wave_back"
+                >
+                  <svg
+                    viewBox="0 0 1200 120"
+                    class="w-full h-full fill-white/15"
+                    preserveAspectRatio="none"
+                  >
+                    <path
+                      d="M0,50 C150,10 350,90 500,50 C650,10 850,90 1000,50 C1150,10 1350,90 1500,50 L1500,120 L0,120 Z"
+                    />
+                  </svg>
+                </div>
+
+                <!-- Liquid glossy edge highlight reflection -->
+                <div
+                  class="absolute top-4 left-6 w-1/4 h-2/3 bg-gradient-to-r from-white/10 to-transparent blur-[2px] pointer-events-none z-20 rounded-md"
+                ></div>
+              </div>
+
+              <!-- Text Percent overlay inside -->
+              <div
+                class="absolute inset-0 flex flex-col justify-center items-center text-center z-30 select-none p-4"
+                id="cylinder_text_overlay"
+              >
+                <!-- Inner critical alarm icon -->
+                <div
+                  class="animate-bounce bg-red-600 text-white rounded-full p-2 mb-2 shadow-lg hidden"
+                  id="alarm_circle_icon"
+                >
+                  <i data-lucide="alert-triangle" class="h-5 w-5"></i>
+                </div>
+
+                <!-- Large numeric read -->
+                <div class="relative" id="main_percent_display">
+                  <span
+                    id="text_level_pct"
+                    class="text-5xl md:text-6xl font-display font-extrabold text-white tracking-tighter filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]"
+                    >--%</span
+                  >
+                  <span
+                    class="absolute -top-1 -right-3 text-xs text-white/80 font-bold"
+                    >%</span
+                  >
+                </div>
+
+                <span
+                  class="text-[10px] md:text-xs font-mono font-bold tracking-widest text-slate-300 uppercase bg-slate-950/70 px-2 py-0.5 rounded-full mt-1.5 border border-slate-800"
+                >
+                  Volume Tinta
+                </span>
+
+                <div class="mt-4" id="cartridge_slot_sublabel">
+                  <span
+                    class="font-mono text-[9px] uppercase tracking-wider text-slate-400 bg-slate-950/60 px-2.5 py-1 rounded-full border border-slate-900"
+                  >
+                    Cartucho #1: Principal
+                  </span>
+                </div>
+              </div>
+
+              <!-- Cylindrical metal bottom rim -->
+              <div
+                class="absolute bottom-0 inset-x-0 h-6 bg-slate-800/80 border-t border-slate-700/50 flex items-center justify-center z-20 pointer-events-none"
+              >
+                <div class="w-16 h-1.5 bg-slate-950/50 rounded-full"></div>
+              </div>
+            </div>
+
+            <!-- Wire wire hanger handle -->
+            <div
+              class="absolute -top-6 inset-x-3 h-10 border border-slate-500/30 rounded-t-full -z-10 pointer-events-none"
+            ></div>
+          </div>
+
+          <!-- Bottom quick summary state checks -->
+          <div
+            class="w-full flex items-center justify-center gap-3 mt-4"
+            id="tank_status_bar"
+          >
+            <span
+              class="text-[10px] font-mono px-3 py-1 rounded-full font-bold uppercase tracking-wider text-slate-400 bg-slate-950/40 border border-slate-850"
+              id="tank_status_badge"
+            >
+              Status: --
+            </span>
+            <span
+              class="text-[11px] text-slate-500 font-mono"
+              id="records_badge_total"
+            >
+              --
+            </span>
+          </div>
+        </div>
+
+        <!-- RIGHT BENTO BLOCK: Presence radar and reserves diagnostics (3 cols) -->
+        <div class="lg:col-span-3 flex flex-col gap-6" id="bento_right">
+          <!-- Presence Detection Card -->
+          <div
+            class="glass rounded-2xl p-6 flex-1 flex flex-col justify-between hover:border-white/20 transition-all group"
+            id="card_presence"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span
+                  class="text-slate-400 text-xs font-mono uppercase tracking-widest"
+                  >PRESENÇA OPERADOR</span
+                >
+                <div
+                  id="presence_icon_box"
+                  class="p-2 rounded-md border border-white/5 bg-[#0a0f1d] text-slate-500 transition-transform duration-200 group-hover:scale-110"
+                >
+                  <i
+                    id="presence_icon"
+                    data-lucide="user-x"
+                    class="h-5 w-5"
+                  ></i>
+                </div>
+              </div>
+
+              <div class="space-y-2 mt-2">
+                <div class="flex items-center gap-2">
+                  <span
+                    id="presence_status_label"
+                    class="text-2xl font-display font-black uppercase tracking-tight text-slate-500"
+                  >
+                    LIVRE
+                  </span>
+                </div>
+                <p class="text-[11px] font-mono uppercase text-slate-500">
+                  SENSOR DE RADAR PRINCIPAL
+                </p>
+              </div>
+            </div>
+
+            <!-- Active glowing presence animation footer -->
+            <div
+              class="mt-6 pt-4 border-t border-white/5 flex items-center gap-3"
+              id="presence_radar"
+            >
+              <span
+                class="relative flex h-3 w-3"
+                id="presence_radar_inner_span"
+              >
+                <span
+                  id="presence_radar_ping"
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 hidden"
+                ></span>
+                <span
+                  id="presence_radar_inner"
+                  class="relative inline-flex rounded-full h-3 w-3 bg-slate-700"
+                ></span>
+              </span>
+              <span
+                id="presence_radar_text"
+                class="text-[10px] text-slate-400 font-mono uppercase tracking-wide"
+              >
+                SEM ATIVIDADE OPERACIONAL
+              </span>
+            </div>
+          </div>
+
+          <!-- Reserves diagnostics bar -->
+          <div
+            class="glass rounded-2xl p-6 flex-1 flex flex-col justify-between hover:border-white/20 transition-all group"
+            id="card_diagnostic"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <span
+                  class="text-slate-400 text-xs font-mono uppercase tracking-widest"
+                  >CARTUCHOS DE RESERVA</span
+                >
+                <div
+                  class="p-2 rounded-md bg-blue-500/10 text-blue-400 group-hover:scale-110 transition-transform duration-200 border border-blue-500/20"
+                >
+                  <i data-lucide="layers" class="h-4 w-4"></i>
+                </div>
+              </div>
+
+              <!-- Progress bar specs -->
+              <div class="space-y-3" id="diagnostic_progress_bars">
+                <div>
+                  <div
+                    class="flex items-center justify-between text-xs text-slate-400 mb-1"
+                  >
+                    <span class="font-mono text-[10px]">CARTUCHO C (CYAN)</span>
+                    <span class="font-mono font-bold">100%</span>
+                  </div>
+                  <div
+                    class="w-full bg-[#0a0f1d] rounded-full h-1 overflow-hidden"
+                  >
+                    <div class="h-full bg-cyan-400" style="width: 100%"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    class="flex items-center justify-between text-xs text-slate-400 mb-1"
+                  >
+                    <span class="font-mono text-[10px]"
+                      >CARTUCHO M (MAGENTA)</span
+                    >
+                    <span class="font-mono font-bold">40%</span>
+                  </div>
+                  <div
+                    class="w-full bg-[#0a0f1d] rounded-full h-1 overflow-hidden"
+                  >
+                    <div class="h-full bg-pink-500" style="width: 40%"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    class="flex items-center justify-between text-xs text-slate-400 mb-1"
+                  >
+                    <span class="font-mono text-[10px]"
+                      >CARTUCHO Y (YELLOW)</span
+                    >
+                    <span class="font-mono font-bold">82%</span>
+                  </div>
+                  <div
+                    class="w-full bg-[#0a0f1d] rounded-full h-1 overflow-hidden"
+                  >
+                    <div class="h-full bg-yellow-400" style="width: 82%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p
+              class="text-[9px] text-slate-600 font-mono uppercase tracking-wide leading-tight mt-4 pt-2 border-t border-white/5"
+            >
+              DISPOSITIVO CALIBRADO COM DESVIO LIMITE DE 0.2%.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOWER SECTION: Trays, Slider Panel and Logs -->
+      <div
+        class="grid grid-cols-1 lg:grid-cols-12 gap-6"
+        id="dashboard_lower_section"
+      >
+        <!-- Simulation Sliders Controls (Toggled via simulation mode state in JS) -->
+        <div
+          class="lg:col-span-12 glass border border-amber-500/20 rounded-2xl p-6 shadow-xl animate-pulse-ring hidden"
+          id="simulator_controls_panel"
+        >
+          <div
+            class="flex items-center gap-2.5 mb-4 border-b border-white/10 pb-3"
+            id="sim_controls_header"
+          >
+            <i data-lucide="sliders" class="h-5 w-5 text-amber-500"></i>
+            <div>
+              <h3
+                class="text-white font-display font-extrabold uppercase text-base tracking-tight"
+              >
+                PAINEL DE SIMULAÇÃO OPERATIVA
+              </h3>
+              <p
+                class="text-slate-500 font-mono text-[10px] uppercase tracking-wider"
+              >
+                Ajuste os valores operacionais para fins de homologação e
+                visualização
+              </p>
+            </div>
+          </div>
+
+          <div
+            class="grid grid-cols-1 md:grid-cols-4 gap-6"
+            id="sim_sliders_grid"
+          >
+            <!-- Simulated Volume -->
+            <div>
+              <div
+                class="flex justify-between text-[11px] font-mono text-slate-400 mb-2 uppercase"
+              >
+                <span class="font-medium">NÍVEL DE TINTA:</span>
+                <span
+                  class="font-mono font-bold text-amber-400"
+                  id="sim_val_ink"
+                  >45%</span
+                >
+              </div>
+              <input
+                id="sim_slider_ink"
+                type="range"
+                min="0"
+                max="100"
+                value="45"
+                oninput="onSliderInput('ink', this.value)"
+                class="w-full accent-amber-500 bg-[#0a0f1d] rounded-lg cursor-pointer h-1.5"
+              />
+              <div
+                class="flex justify-between text-[9px] text-slate-600 font-mono mt-1"
+              >
+                <span>0% (VAZIO)</span>
+                <span>10% (ALERTA)</span>
+                <span>100% (CHEIO)</span>
+              </div>
+            </div>
+
+            <!-- Simulated Temp -->
+            <div>
+              <div
+                class="flex justify-between text-[11px] font-mono text-slate-400 mb-2 uppercase"
+              >
+                <span class="font-medium">TEMPERATURA:</span>
+                <span
+                  class="font-mono font-bold text-amber-400"
+                  id="sim_val_temp"
+                  >24.5°C</span
+                >
+              </div>
+              <input
+                id="sim_slider_temp"
+                type="range"
+                min="0"
+                max="50"
+                step="0.5"
+                value="24.5"
+                oninput="onSliderInput('temp', this.value)"
+                class="w-full accent-amber-500 bg-[#0a0f1d] rounded-lg cursor-pointer h-1.5"
+              />
+              <div
+                class="flex justify-between text-[9px] text-slate-600 font-mono mt-1"
+              >
+                <span>0°C</span>
+                <span>25°C (IDEAL)</span>
+                <span>50°C</span>
+              </div>
+            </div>
+
+            <!-- Simulated Humidity -->
+            <div>
+              <div
+                class="flex justify-between text-[11px] font-mono text-slate-400 mb-2 uppercase"
+              >
+                <span class="font-medium">UMIDADE TANQUE:</span>
+                <span
+                  class="font-mono font-bold text-amber-400"
+                  id="sim_val_humidity"
+                  >60%</span
+                >
+              </div>
+              <input
+                id="sim_slider_humidity"
+                type="range"
+                min="10"
+                max="95"
+                value="60"
+                oninput="onSliderInput('humidity', this.value)"
+                class="w-full accent-amber-500 bg-[#0a0f1d] rounded-lg cursor-pointer h-1.5"
+              />
+              <div
+                class="flex justify-between text-[9px] text-slate-600 font-mono mt-1"
+              >
+                <span>10%</span>
+                <span>60% (IDEAL)</span>
+                <span>95%</span>
+              </div>
+            </div>
+
+            <!-- Simulated Presence -->
+            <div>
+              <span
+                class="text-[11px] font-mono text-slate-400 block mb-2 uppercase"
+                >PRESENÇA OPERADOR:</span
+              >
+              <div class="flex gap-2" id="sim_presence_toggles">
+                <button
+                  id="sim_btn_presence_off"
+                  onclick="onPresenceToggleClick(0)"
+                  class="flex-1 text-[10px] font-mono py-2 rounded font-bold uppercase transition-all duration-200 border bg-slate-950 text-slate-300 border-amber-500/40"
+                >
+                  0 (AUSENTE)
+                </button>
+                <button
+                  id="sim_btn_presence_on"
+                  onclick="onPresenceToggleClick(1)"
+                  class="flex-1 text-[10px] font-mono py-2 rounded font-bold uppercase transition-all duration-200 border bg-slate-900/60 text-slate-500 border-white/5"
+                >
+                  1 (PRESENTE)
+                </button>
+              </div>
+              <p class="text-[9px] text-slate-600 font-mono mt-2 text-right">
+                Radar de simulação
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOGS TABLE: Recent Telemetry Records (12 cols) -->
+        <div
+          class="lg:col-span-12 glass rounded-2xl p-6"
+          id="historical_table_panel"
+        >
+          <div
+            class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4"
+            id="historical_header"
+          >
+            <div>
+              <h3
+                class="text-white font-display font-extrabold text-base flex items-center gap-2 uppercase tracking-tight"
+              >
+                <i data-lucide="activity" class="h-5 w-5 text-blue-400"></i>
+                LOGS RECENTES E TELEMETRIA OPERACIONAL
+              </h3>
+              <p
+                class="text-slate-500 font-mono text-[10px] uppercase tracking-wider"
+              >
+                Histórico de leituras recebidas do sensor do reservatório em
+                tempo real
+              </p>
+            </div>
+
+            <button
+              id="poll_refresh_action_btn"
+              onclick="onForceRefreshClick()"
+              class="flex items-center gap-2 font-mono text-[10px] uppercase font-bold bg-blue-950/40 hover:bg-blue-900/40 text-blue-300 border border-blue-500/20 px-4 py-2 rounded transition-all active:scale-95"
+            >
+              <i data-lucide="refresh-cw" class="h-3 w-3"></i>
+              FORÇAR LEITURA
+            </button>
+          </div>
+
+          <!-- Table Container -->
+          <div class="overflow-x-auto" id="table_container_sc">
+            <!-- Loading template inside table (Shown when state.loading is true) -->
+            <div
+              class="py-12 text-center text-slate-500 font-mono text-xs uppercase tracking-wider hidden"
+              id="records_loading_state"
+            >
+              <i
+                data-lucide="refresh-cw"
+                class="h-5 w-5 animate-spin mx-auto mb-3 text-blue-400"
+              ></i>
+              SINCRONIZANDO COM OS SERVIDORES DA AWS...
+            </div>
+
+            <table
+              class="w-full text-left border-collapse table-auto text-xs"
+              id="records_real_table"
+            >
+              <thead>
+                <tr
+                  class="border-b border-white/5 text-slate-500 font-mono uppercase tracking-widest text-[10px]"
+                >
+                  <th class="py-3 px-4 font-bold text-center w-12">ID</th>
+                  <th class="py-3 px-4 font-bold">TINTA / VOLUME</th>
+                  <th class="py-3 px-4 font-bold">TEMPERATURA</th>
+                  <th class="py-3 px-4 font-bold">UMIDADE</th>
+                  <th class="py-3 px-4 font-bold">STATUS PRESENÇA</th>
+                  <th class="py-3 px-4 font-bold text-center">
+                    TIMESTAMP DO SENSOR
+                  </th>
+                  <th class="py-3 px-4 font-bold text-right">STATUS GERAL</th>
+                </tr>
+              </thead>
+              <tbody
+                class="divide-y divide-white/5 font-mono"
+                id="table_records_rows"
+              >
+                <!-- Records list rendered via Vanilla JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Table Log Footer -->
+          <div
+            class="flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 font-mono mt-4 border-t border-white/5 pt-4 gap-2"
+            id="historical_footer_row"
+          >
+            <div class="flex items-center gap-1" id="footer_calibration_label">
+              <i data-lucide="check-circle" class="h-4 w-4 text-blue-400"></i>
+              <span class="uppercase tracking-wider"
+                >SISTEMA ATIVO: INTERVALO DE CAPTURA 2.0S</span
+              >
+            </div>
+            <div class="flex flex-col sm:flex-row items-center gap-2">
+              <span class="uppercase tracking-wider" id="origin_service_label"
+                >ORIGEM: AWS_LAMBDA_IOT_URL</span
+              >
+              <span class="uppercase tracking-wider text-[10px]"
+                >Solução AWS inteiramente desenvolvida por Marcos Paulo Teles de
+                Menezes Filho</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN CORE INTEGRATION JAVASCRIPT ENGINE -->
+    <script>
+      // Single Centralized Application State
+      const state = {
+        apiEndpoint:
+          "INSIRA SUA LAMBDA FUNCTION URL AQUI",
+        updateInterval: 2000,
+
+        // AWS telemetries
+        data: null,
+        loading: true,
+        isConnected: false,
+        errorCount: 0,
+        lastUpdatedLocal: "--",
+        secondsToNextPoll: 2.0,
+
+        // Simulation parameters
+        simulationMode: false,
+        simulatedInk: 45,
+        simulatedTemp: 24.5,
+        simulatedHum: 60,
+        simulatedPresence: 1,
+
+        // Selected visual ink color presets
+        selectedPaintColor: "indigo",
+      };
+
+      // Custom color schemes matching App.tsx React palette choices
+      const colorSchemes = {
+        indigo: {
+          fill: "from-blue-500 to-indigo-600",
+          shadow: "shadow-indigo-500/25",
+          border: "border-indigo-500/30",
+          text: "text-blue-400",
+          bg: "bg-blue-550",
+          textClass: "text-blue-400 bg-blue-950/40 border border-blue-500/25",
+          label: "SAUDÁVEL",
+          color: "bg-indigo-500",
+        },
+        magenta: {
+          fill: "from-pink-500 to-fuchsia-600",
+          shadow: "shadow-fuchsia-500/25",
+          border: "border-fuchsia-500/30",
+          text: "text-pink-400",
+          bg: "bg-pink-550",
+          textClass:
+            "text-pink-400 bg-pink-950/40 border border-fuchsia-500/25",
+          label: "SAUDÁVEL",
+          color: "bg-fuchsia-500",
+        },
+        cyan: {
+          fill: "from-cyan-400 to-sky-600",
+          shadow: "shadow-cyan-400/25",
+          border: "border-cyan-400/30",
+          text: "text-cyan-400",
+          bg: "bg-cyan-550",
+          textClass: "text-cyan-400 bg-cyan-950/40 border border-cyan-400/25",
+          label: "SAUDÁVEL",
+          color: "bg-cyan-400",
+        },
+        emerald: {
+          fill: "from-emerald-400 to-teal-600",
+          shadow: "shadow-emerald-500/25",
+          border: "border-emerald-500/30",
+          text: "text-emerald-400",
+          bg: "bg-emerald-550",
+          textClass:
+            "text-emerald-400 bg-emerald-950/40 border border-emerald-500/25",
+          label: "SAUDÁVEL",
+          color: "bg-emerald-500",
+        },
+        amber: {
+          fill: "from-amber-400 to-orange-500",
+          shadow: "shadow-amber-500/25",
+          border: "border-amber-500/30",
+          text: "text-amber-400",
+          bg: "bg-amber-550",
+          textClass:
+            "text-amber-400 bg-amber-950/40 border border-amber-550/25",
+          label: "SAUDÁVEL",
+          color: "bg-amber-400",
+        },
+      };
+
+      // Helper to evaluate fluid ranges
+      function getActiveRecord() {
+        if (state.simulationMode) {
+          return {
+            ID: 999,
+            temperatura_c: state.simulatedTemp,
+            umidade_pct: state.simulatedHum,
+            nivel_tinta: state.simulatedInk,
+            presenca: state.simulatedPresence,
+            timestamp: new Date().toISOString(),
+          };
+        }
+
+        if (
+          state.data &&
+          state.data.latest_data &&
+          state.data.latest_data.length > 0
+        ) {
+          return state.data.latest_data[0];
+        }
+
+        // Default startup fallback record values matching React defaults
+        return {
+          ID: 1,
+          temperatura_c: 24.2,
+          umidade_pct: 69.6,
+          nivel_tinta: 100,
+          presenca: 1,
+          timestamp: "2026-06-01T19:27:16Z",
+        };
+      }
+
+      // Fetch from direct lambda AWS integration
+      async function fetchAndUpdate() {
+        if (state.simulationMode) return;
+
+        try {
+          const response = await fetch(state.apiEndpoint);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+
+          state.data = data;
+          state.isConnected = true;
+          state.loading = false;
+          state.errorCount = 0;
+          state.lastUpdatedLocal = new Date().toLocaleTimeString("pt-BR");
+        } catch (err) {
+          console.error("Erro ao obter telemetria do IoT Hub:", err);
+          state.isConnected = false;
+          state.loading = false;
+          state.errorCount++;
+        }
+
+        state.secondsToNextPoll = state.updateInterval / 1000;
+        render();
+      }
+
+      // Main UI Render Function (Replicates all state updates down to HTML)
+      function render() {
+        const record = getActiveRecord();
+        const inkLevel = record.nivel_tinta;
+        const isCritical = inkLevel <= 10;
+        const isWarning = inkLevel > 10 && inkLevel <= 30;
+
+        // Obtain visual color styles
+        let inkConfig = {};
+        if (isCritical) {
+          inkConfig = {
+            fill: "from-red-600 to-rose-700",
+            label: "CRÍTICO",
+            textClass: "text-red-400 bg-red-950/40 border border-red-500/25",
+          };
+        } else if (isWarning) {
+          inkConfig = {
+            fill: "from-amber-500 to-orange-600",
+            label: "BAIXO NÍVEL",
+            textClass:
+              "text-orange-400 bg-[#351a0a]/50 border border-orange-500/25",
+          };
+        } else {
+          const scheme =
+            colorSchemes[state.selectedPaintColor] || colorSchemes.indigo;
+          inkConfig = {
+            fill: scheme.fill,
+            label: scheme.label,
+            textClass: scheme.textClass,
+          };
+        }
+
+        // 1. Header refresh timer or status
+        const refreshTimerElement = document.getElementById("refresh_timer");
+        const refreshTimerText = document.getElementById("refresh_timer_text");
+        if (state.simulationMode) {
+          refreshTimerElement.classList.add("hidden");
+        } else {
+          refreshTimerElement.classList.remove("hidden");
+          refreshTimerText.textContent = `REFRESH: ${state.secondsToNextPoll.toFixed(1)}s`;
+        }
+
+        // 2. Connection Status Badge styles
+        const statusBadge = document.getElementById("status_badge");
+        const dotOuter = document.getElementById("pulsing_dot_outer");
+        const dotInner = document.getElementById("pulsing_dot_inner");
+        const badgeText = document.getElementById("status_badge_text");
+
+        // Clean classes before piling
+        statusBadge.className =
+          "flex items-center gap-2 px-3 py-2 rounded-lg border font-mono text-[11px] uppercase tracking-wider transition-all duration-300";
+        dotOuter.className =
+          "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75";
+        dotInner.className = "relative inline-flex rounded-full h-2 w-2";
+
+        if (state.simulationMode) {
+          statusBadge.classList.add(
+            "bg-amber-950/30",
+            "border-amber-500/30",
+            "text-amber-300",
+          );
+          dotOuter.classList.add("bg-amber-400");
+          dotInner.classList.add("bg-amber-500");
+          badgeText.textContent = "SIMULAÇÃO";
+        } else if (state.isConnected) {
+          statusBadge.classList.add(
+            "bg-blue-950/30",
+            "border-blue-500/30",
+            "text-blue-300",
+          );
+          dotOuter.classList.add("bg-blue-400");
+          dotInner.classList.add("bg-blue-500");
+          badgeText.textContent = "AWS CONECTADO";
+        } else if (state.loading) {
+          statusBadge.classList.add(
+            "glass",
+            "border-white/10",
+            "text-slate-400",
+          );
+          dotOuter.classList.add("bg-slate-400");
+          dotInner.classList.add("bg-slate-500");
+          badgeText.textContent = "INICIANDO...";
+        } else {
+          statusBadge.classList.add(
+            "bg-red-950/30",
+            "border-red-500/30",
+            "text-red-300",
+          );
+          dotOuter.classList.add("bg-red-400");
+          dotInner.classList.add("bg-red-500");
+          badgeText.textContent = "INDISPONÍVEL";
+        }
+
+        // 3. Critical Alarm Bar toggle
+        const criticalAlertBar = document.getElementById("critical_alert_bar");
+        const criticalAlertDesc = document.getElementById(
+          "critical_alert_desc",
+        );
+        if (isCritical) {
+          criticalAlertBar.classList.remove("hidden");
+          criticalAlertBar.classList.add("flex");
+          criticalAlertDesc.textContent = `O cartucho de tinta está com apenas ${inkLevel}%. Recarga imediata operacional solicitada.`;
+        } else {
+          criticalAlertBar.classList.add("hidden");
+          criticalAlertBar.classList.remove("flex");
+        }
+
+        // 4. Quick stats summary values
+        document.getElementById("stat_records_val").textContent =
+          state.simulationMode
+            ? "DEBUG"
+            : state.data
+              ? state.data.total_records
+              : "--";
+
+        const timestampDate = record.timestamp
+          ? new Date(record.timestamp)
+          : null;
+        document.getElementById("stat_clock_val").textContent = timestampDate
+          ? timestampDate.toLocaleTimeString("pt-BR")
+          : "--:--:--";
+        document.getElementById("stat_date_val").textContent = timestampDate
+          ? timestampDate.toLocaleDateString("pt-BR")
+          : "--/--/----";
+
+        // Toggle simulator toggle button look
+        const toggleSimulatorBtn = document.getElementById(
+          "toggle_simulator_btn",
+        );
+        if (state.simulationMode) {
+          toggleSimulatorBtn.className =
+            "text-[10px] font-mono font-bold uppercase px-3 py-1.5 rounded transition-all border duration-200 bg-amber-500/20 text-amber-300 border-amber-500/30 animate-pulse-ring";
+          toggleSimulatorBtn.textContent = "DESATIVAR";
+        } else {
+          toggleSimulatorBtn.className =
+            "text-[10px] font-mono font-bold uppercase px-3 py-1.5 rounded transition-all border duration-200 bg-slate-900 border-slate-800 hover:bg-slate-800 text-slate-400";
+          toggleSimulatorBtn.textContent = "ATIVAR";
+        }
+
+        // 5. Temperature card updates
+        const tempVal = record.temperatura_c;
+        document.getElementById("temp_value").textContent = tempVal.toFixed(1);
+        const tempWidth = Math.min(100, Math.max(0, (tempVal / 50) * 100));
+        document.getElementById("temp_progress_fill").style.width =
+          `${tempWidth}%`;
+
+        // 6. Humidity card updates
+        const humVal = record.umidade_pct;
+        document.getElementById("humidity_value").textContent =
+          humVal.toFixed(1);
+        document.getElementById("humidity_progress_fill").style.width =
+          `${humVal}%`;
+        const humStatusText =
+          humVal > 70 ? "ALTA" : humVal < 30 ? "SECO" : "ESTÁVEL";
+        document.getElementById("humidity_status_label").textContent =
+          humStatusText;
+
+        // 7. Paint chooser checkmarks/outlines
+        const optionKeys = Object.keys(colorSchemes);
+        optionKeys.forEach((colorKey) => {
+          const btn = document.getElementById(`color_pick_${colorKey}`);
+          if (btn) {
+            if (state.selectedPaintColor === colorKey) {
+              btn.className = `h-4 w-4 rounded-full border border-white ring-2 ring-blue-500 scale-125 transition-all duration-250 ${colorSchemes[colorKey].color}`;
+            } else {
+              btn.className = `h-4 w-4 rounded-full border border-slate-800 hover:scale-110 transition-all duration-250 ${colorSchemes[colorKey].color}`;
+            }
+          }
+        });
+
+        // 8. Paint backlight & cylindrical can
+        const paintBacklight = document.getElementById("paint_backlight");
+        const cylinderCan = document.getElementById("cylinder_can");
+
+        paintBacklight.className =
+          "absolute inset-0 rounded-3xl opacity-25 filter blur-3xl transition-all duration-500 -z-10";
+        cylinderCan.className =
+          "relative w-56 h-72 border-2 rounded-t-[36px] rounded-b-[42px] bg-slate-950/40 overflow-hidden flex flex-col justify-end transition-all duration-500 shadow-[2px_10px_20px_rgba(0,0,0,0.5)]";
+
+        if (isCritical) {
+          paintBacklight.classList.add("bg-red-500", "scale-110");
+          cylinderCan.classList.add(
+            "border-red-500",
+            "ring-4",
+            "ring-red-500/10",
+            "shadow-[0_0_30px_rgba(239,68,68,0.25)]",
+            "critical-pulse",
+          );
+        } else if (isWarning) {
+          paintBacklight.classList.add("bg-yellow-500", "scale-105");
+          cylinderCan.classList.add(
+            "border-orange-400",
+            "shadow-[0_0_20px_rgba(249,115,22,0.15)]",
+          );
+        } else {
+          // Standard state colors derived from choice
+          const currentColorInfo =
+            colorSchemes[state.selectedPaintColor] || colorSchemes.indigo;
+          paintBacklight.classList.add(
+            state.selectedPaintColor === "indigo" ||
+              state.selectedPaintColor === "cyan"
+              ? "bg-blue-500"
+              : "bg-fuchsia-500",
+          );
+          cylinderCan.classList.add("border-slate-700/60");
+        }
+
+        // Apply dynamic liquid reservoir height
+        document.getElementById("liquid_reservoir").style.height =
+          `${inkLevel}%`;
+
+        // Remove old gradients and apply the config gradient
+        const baseGradient = document.getElementById("liquid_base_gradient");
+        baseGradient.className = `absolute inset-0 bg-gradient-to-t ${inkConfig.fill} opacity-90`;
+
+        // Text Level Displays
+        document.getElementById("text_level_pct").textContent =
+          inkLevel.toFixed(1);
+
+        // Inside cylinder alarm notification
+        const insideAlarmIcon = document.getElementById("alarm_circle_icon");
+        if (isCritical) {
+          insideAlarmIcon.classList.remove("hidden");
+        } else {
+          insideAlarmIcon.classList.add("hidden");
+        }
+
+        // Setup ink volume labels
+        const inkBadge = document.getElementById("tank_status_badge");
+        inkBadge.textContent = `Status: ${inkConfig.label}`;
+        inkBadge.className = `text-[10px] font-mono px-3 py-1 rounded-full font-bold uppercase tracking-wider ${inkConfig.textClass}`;
+
+        const logsBadgeTotal = document.getElementById("records_badge_total");
+        if (state.simulationMode) {
+          logsBadgeTotal.textContent = "LEITURA SIMULADA";
+        } else {
+          const totalRecordsValue = state.data ? state.data.total_records : 0;
+          logsBadgeTotal.textContent = `TOTAL: ${totalRecordsValue} LOGS`;
+        }
+
+        // 9. Operator presence card updates
+        const presenceStatusLabel = document.getElementById(
+          "presence_status_label",
+        );
+        const presenceIconBox = document.getElementById("presence_icon_box");
+        const presenceIcon = document.getElementById("presence_icon");
+        const presenceRadarPing = document.getElementById(
+          "presence_radar_ping",
+        );
+        const presenceRadarInner = document.getElementById(
+          "presence_radar_inner",
+        );
+        const presenceRadarText = document.getElementById(
+          "presence_radar_text",
+        );
+
+        presenceStatusLabel.className =
+          "text-2xl font-display font-black uppercase tracking-tight";
+        presenceIconBox.className =
+          "p-2 rounded-md border transition-transform duration-200 group-hover:scale-110";
+
+        if (record.presenca === 1) {
+          presenceStatusLabel.textContent = "DETECTADA";
+          presenceStatusLabel.classList.add("text-emerald-400");
+
+          presenceIconBox.className =
+            "p-2 rounded-md border transition-transform duration-250 group-hover:scale-110 bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+          presenceIcon.setAttribute("data-lucide", "user-check");
+
+          presenceRadarPing.classList.remove("hidden");
+          presenceRadarInner.className =
+            "relative inline-flex rounded-full h-3 w-3 bg-emerald-500";
+          presenceRadarText.textContent = "MONITORAÇÃO EM CURSO";
+        } else {
+          presenceStatusLabel.textContent = "LIVRE";
+          presenceStatusLabel.classList.add("text-slate-500");
+
+          presenceIconBox.className =
+            "p-2 rounded-md border transition-transform duration-250 group-hover:scale-110 bg-[#0a0f1d] text-slate-500 border-white/5";
+          presenceIcon.setAttribute("data-lucide", "user-x");
+
+          presenceRadarPing.classList.add("hidden");
+          presenceRadarInner.className =
+            "relative inline-flex rounded-full h-3 w-3 bg-slate-700";
+          presenceRadarText.textContent = "SEM ATIVIDADE OPERACIONAL";
+        }
+
+        // 10. Simulator Sliders Panel toggle and slide states
+        const simPanel = document.getElementById("simulator_controls_panel");
+        if (state.simulationMode) {
+          simPanel.classList.remove("hidden");
+
+          document.getElementById("sim_slider_ink").value = state.simulatedInk;
+          document.getElementById("sim_val_ink").textContent =
+            `${state.simulatedInk}%`;
+
+          document.getElementById("sim_slider_temp").value =
+            state.simulatedTemp;
+          document.getElementById("sim_val_temp").textContent =
+            `${state.simulatedTemp.toFixed(1)}°C`;
+
+          document.getElementById("sim_slider_humidity").value =
+            state.simulatedHum;
+          document.getElementById("sim_val_humidity").textContent =
+            `${state.simulatedHum}%`;
+
+          const presenceOff = document.getElementById("sim_btn_presence_off");
+          const presenceOn = document.getElementById("sim_btn_presence_on");
+          if (state.simulatedPresence === 0) {
+            presenceOff.className =
+              "flex-1 text-[10px] font-mono py-2 rounded font-bold uppercase transition-all duration-200 border bg-slate-950 text-slate-300 border-amber-500/40";
+            presenceOn.className =
+              "flex-1 text-[10px] font-mono py-2 rounded font-bold uppercase transition-all duration-200 border bg-slate-900/60 text-slate-500 border-white/5";
+          } else {
+            presenceOff.className =
+              "flex-1 text-[10px] font-mono py-2 rounded font-bold uppercase transition-all duration-200 border bg-slate-900/60 text-slate-500 border-white/5";
+            presenceOn.className =
+              "flex-1 text-[10px] font-mono py-2 rounded font-bold uppercase transition-all duration-200 border bg-amber-500/10 text-amber-400 border-amber-500/30";
+          }
+        } else {
+          simPanel.classList.add("hidden");
+        }
+
+        // 11. Render Logs Table Rows
+        const loadingState = document.getElementById("records_loading_state");
+        const recordsTable = document.getElementById("records_real_table");
+        const tbody = document.getElementById("table_records_rows");
+
+        tbody.innerHTML = "";
+
+        if (state.loading && !state.data) {
+          loadingState.classList.remove("hidden");
+          recordsTable.classList.add("hidden");
+          return;
+        } else {
+          loadingState.classList.add("hidden");
+          recordsTable.classList.remove("hidden");
+        }
+
+        // Simulated row shown on top if simulator is active
+        if (state.simulationMode) {
+          const simRow = document.createElement("tr");
+          simRow.className =
+            "bg-amber-955/20 hover:bg-amber-950/15 text-slate-300 transition-colors";
+
+          simRow.innerHTML = `
+            <td class="py-3 px-4 text-center font-bold text-amber-400">[SIM]</td>
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-white">${state.simulatedInk}%</span>
+                <div class="w-16 bg-[#0a0f1d] rounded-full h-1 overflow-hidden">
+                  <div class="h-full bg-amber-400" style="width: ${state.simulatedInk}%"></div>
+                </div>
+              </div>
+            </td>
+            <td class="py-3 px-4 text-slate-300">${state.simulatedTemp.toFixed(1)}°C</td>
+            <td class="py-3 px-4 text-slate-300">${state.simulatedHum}%</td>
+            <td class="py-3 px-4">
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-emerald-950/30 text-emerald-400 border border-emerald-500/20">
+                OPERADOR DETECTADO
+              </span>
+            </td>
+            <td class="py-3 px-4 text-slate-500 text-center uppercase text-[10px]">DEBUG OFFLINE</td>
+            <td class="py-3 px-4 text-right">
+              <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-amber-400/20 text-amber-350 border border-amber-500/20 uppercase">
+                SIMULADO
+              </span>
+            </td>
+          `;
+          tbody.appendChild(simRow);
+        }
+
+        // Real API data rows
+        const recordsList = state.data ? state.data.latest_data : [];
+        if (recordsList && recordsList.length > 0) {
+          recordsList.slice(0, 10).forEach((item, idx) => {
+            const isItemCritical = item.nivel_tinta <= 10;
+            const isItemWarning =
+              item.nivel_tinta > 10 && item.nivel_tinta <= 30;
+
+            let rowBadge = "";
+            let rowText = "";
+            if (isItemCritical) {
+              rowBadge = "bg-red-950/40 text-red-400 border-red-500/20";
+              rowText = "CRÍTICO";
+            } else if (isItemWarning) {
+              rowBadge = "bg-amber-955/40 text-amber-400 border-amber-500/20";
+              rowText = "BAIXO";
+            } else {
+              rowBadge = "bg-blue-950/40 text-blue-400 border-blue-500/20";
+              rowText = "SAUDÁVEL";
+            }
+
+            const tr = document.createElement("tr");
+            tr.className =
+              "hover:bg-white/5 text-slate-300 transition-colors duration-150";
+            tr.id = `row_record_${item.ID || idx}`;
+
+            tr.innerHTML = `
+              <td class="py-3.5 px-4 text-center text-slate-600 font-bold">${item.ID || "--"}</td>
+              <td class="py-3.5 px-4">
+                <div class="flex items-center gap-3">
+                  <div class="font-bold text-white w-10">${item.nivel_tinta.toFixed(1)}%</div>
+                  <div class="w-20 bg-[#0a0f1d] rounded h-1 overflow-hidden hidden sm:block">
+                    <div 
+                      class="h-full transition-all duration-300 ${isItemCritical ? "bg-red-500 animate-pulse" : isItemWarning ? "bg-amber-500" : "bg-blue-500"}" 
+                      style="width: ${item.nivel_tinta}%"
+                    ></div>
+                  </div>
+                </div>
+              </td>
+              <td class="py-3.5 px-4 font-semibold text-slate-400">${item.temperatura_c ? item.temperatura_c.toFixed(1) + "°C" : "--"}</td>
+              <td class="py-3.5 px-4 text-slate-400">${item.umidade_pct ? item.umidade_pct.toFixed(1) + "%" : "--"}</td>
+              <td class="py-3.5 px-4">
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase ${item.presenca === 1 ? "bg-emerald-950/30 text-emerald-400 border border-emerald-500/20" : "bg-slate-900 text-slate-500 border border-transparent"}">
+                  ${item.presenca === 1 ? "OPERADOR PRESENTE" : "LIVRE / VAZIO"}
+                </span>
+              </td>
+              <td class="py-3.5 px-4 text-center text-slate-500 text-[10px]">
+                ${item.timestamp ? new Date(item.timestamp).toLocaleString("pt-BR") : "--"}
+              </td>
+              <td class="py-3.5 px-4 text-right">
+                <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded border ${rowBadge}">
+                  ${rowText}
+                </span>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // Empty table placeholder
+        if (tbody.children.length === 0) {
+          const emptyRow = document.createElement("tr");
+          emptyRow.innerHTML = `
+            <td colSpan="7" class="py-8 text-center text-slate-600 italic uppercase font-mono tracking-wider">
+              AGUARDANDO CONEXÃO E ENVIO DE NOVOS LOGS...
+            </td>
+          `;
+          tbody.appendChild(emptyRow);
+        }
+
+        // Dynamically trigger Lucide to render all newly injected icons
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      }
+
+      // Event handlers
+      function changeSelectedColor(colorKey) {
+        state.selectedPaintColor = colorKey;
+        render();
+      }
+
+      function onSliderInput(type, value) {
+        if (type === "ink") {
+          state.simulatedInk = Number(value);
+        } else if (type === "temp") {
+          state.simulatedTemp = Number(value);
+        } else if (type === "humidity") {
+          state.simulatedHum = Number(value);
+        }
+        render();
+      }
+
+      function onPresenceToggleClick(presenceValue) {
+        state.simulatedPresence = presenceValue;
+        render();
+      }
+
+      function onForceRefreshClick() {
+        fetchAndUpdate();
+      }
+
+      // Initialize on DOM load
+      document.addEventListener("DOMContentLoaded", () => {
+        // Toggle simulator mode
+        document
+          .getElementById("toggle_simulator_btn")
+          .addEventListener("click", () => {
+            state.simulationMode = !state.simulationMode;
+
+            const labelOrigin = document.getElementById("origin_service_label");
+            if (state.simulationMode) {
+              labelOrigin.textContent = "ORIGEM: STATION_VIRTUAL_DEBUG";
+            } else {
+              labelOrigin.textContent = "ORIGEM: AWS_LAMBDA_IOT_URL";
+            }
+
+            render();
+          });
+
+        // Initialize Lucide icons
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+
+        // Initial fetch
+        fetchAndUpdate();
+
+        // 2 Second Polling Loop
+        setInterval(() => {
+          fetchAndUpdate();
+        }, state.updateInterval);
+
+        // 100ms Countdown progress decrementer
+        setInterval(() => {
+          if (!state.simulationMode) {
+            state.secondsToNextPoll -= 0.1;
+            if (state.secondsToNextPoll <= 0) {
+              state.secondsToNextPoll = state.updateInterval / 1000;
+            }
+            document.getElementById("refresh_timer_text").textContent =
+              `REFRESH: ${state.secondsToNextPoll.toFixed(1)}s`;
+          }
+        }, 100);
+      });
+    </script>
+  </body>
+</html>
